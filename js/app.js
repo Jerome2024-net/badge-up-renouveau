@@ -114,6 +114,15 @@ function processPhoto(file) {
         photoPreview.src = e.target.result;
         photoPreview.classList.add('active');
         uploadPlaceholder.style.display = 'none';
+        
+        // Auto-adjust preview position
+        photoPreview.onload = () => {
+            if (photoPreview.naturalHeight > photoPreview.naturalWidth) {
+                photoPreview.style.objectPosition = 'center 15%';
+            } else {
+                photoPreview.style.objectPosition = 'center center';
+            }
+        };
     };
     reader.onerror = () => {
         alert('Erreur lors de la lecture du fichier.');
@@ -147,12 +156,23 @@ async function handleFormSubmit(e) {
     badgeName.textContent = `${prenom} ${nom.toUpperCase()}`;
     badgePhoto.src = photoSrc;
     
-    // Wait for image to load
+    // Wait for image to load and adjust position
     await new Promise((resolve) => {
-        if (badgePhoto.complete) {
+        const adjustAndResolve = () => {
+            // Automatic cropping heuristic:
+            // If image is portrait (taller than wide), focus on the top part (face)
+            if (badgePhoto.naturalHeight > badgePhoto.naturalWidth) {
+                badgePhoto.style.objectPosition = 'center 15%';
+            } else {
+                badgePhoto.style.objectPosition = 'center center';
+            }
             resolve();
+        };
+
+        if (badgePhoto.complete) {
+            adjustAndResolve();
         } else {
-            badgePhoto.onload = resolve;
+            badgePhoto.onload = adjustAndResolve;
         }
     });
     
