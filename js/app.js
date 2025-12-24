@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 function init() {
     setupEventListeners();
-    setupCropperEvents();
+    // setupCropperEvents(); // Removed
 }
 
 function setupEventListeners() {
@@ -72,16 +72,12 @@ function setupEventListeners() {
     photoUpload.addEventListener('drop', handleDrop);
 }
 
+/* Cropper events removed
 // Setup Cropper events
 function setupCropperEvents() {
-    cropConfirm.addEventListener('click', confirmCrop);
-    cropCancel.addEventListener('click', cancelCrop);
-    cropZoomIn.addEventListener('click', () => cropper && cropper.zoom(0.1));
-    cropZoomOut.addEventListener('click', () => cropper && cropper.zoom(-0.1));
-    cropRotateLeft.addEventListener('click', () => cropper && cropper.rotate(-90));
-    cropRotateRight.addEventListener('click', () => cropper && cropper.rotate(90));
-    cropReset.addEventListener('click', () => cropper && cropper.reset());
+    // ...
 }
+*/
 
 // Photo handling
 function handlePhotoSelect(e) {
@@ -129,77 +125,37 @@ function processPhoto(file) {
     
     const reader = new FileReader();
     reader.onload = (e) => {
-        // Open crop modal
-        openCropModal(e.target.result);
+        // Direct display without cropping
+        photoPreview.src = e.target.result;
+        photoPreview.classList.add('active');
+        uploadPlaceholder.style.display = 'none';
     };
     reader.readAsDataURL(file);
 }
 
+/* Cropping functionality removed as requested
 // Open crop modal
 function openCropModal(imageSrc) {
-    cropImage.src = imageSrc;
-    cropModal.classList.add('active');
-    
-    // Destroy previous cropper if exists
-    if (cropper) {
-        cropper.destroy();
-    }
-    
-    // Initialize Cropper
-    cropper = new Cropper(cropImage, {
-        aspectRatio: 1, // Square crop for badge
-        viewMode: 2,
-        dragMode: 'move',
-        autoCropArea: 0.9,
-        restore: false,
-        guides: true,
-        center: true,
-        highlight: false,
-        cropBoxMovable: true,
-        cropBoxResizable: true,
-        toggleDragModeOnDblclick: false,
-        responsive: true,
-        background: true,
-    });
+    // ...
 }
+*/
 
+/* Crop functions removed
 // Confirm crop
 function confirmCrop() {
-    if (!cropper) return;
-    
-    // Get cropped canvas
-    const canvas = cropper.getCroppedCanvas({
-        width: 800,
-        height: 800,
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: 'high',
-    });
-    
-    // Set preview image
-    const croppedImageUrl = canvas.toDataURL('image/jpeg', 0.9);
-    photoPreview.src = croppedImageUrl;
-    photoPreview.classList.add('active');
-    uploadPlaceholder.style.display = 'none';
-    
-    // Close modal
-    closeCropModal();
+    // ...
 }
 
 // Cancel crop
 function cancelCrop() {
-    closeCropModal();
-    // Reset file input
-    photoInput.value = '';
+    // ...
 }
 
 // Close crop modal
 function closeCropModal() {
-    cropModal.classList.remove('active');
-    if (cropper) {
-        cropper.destroy();
-        cropper = null;
-    }
+    // ...
 }
+*/
 
 // Form submission
 async function handleFormSubmit(e) {
