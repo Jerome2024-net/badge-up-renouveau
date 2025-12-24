@@ -60,6 +60,19 @@ python -m http.server 8000
 ```
 Puis ouvrez http://localhost:8000
 
+## 🌐 Déploiement sur GitHub Pages
+
+1. Créez un nouveau repository sur GitHub.
+2. Poussez votre code :
+```bash
+git remote add origin https://github.com/VOTRE_NOM_UTILISATEUR/NOM_DU_REPO.git
+git branch -M main
+git push -u origin main
+```
+3. Allez dans **Settings** > **Pages**.
+4. Sous **Source**, sélectionnez `main` branch.
+5. Votre site sera disponible à l'adresse : `https://VOTRE_NOM_UTILISATEUR.github.io/NOM_DU_REPO/`
+
 ## ⚙️ Configuration
 
 ### Logo du Parti
