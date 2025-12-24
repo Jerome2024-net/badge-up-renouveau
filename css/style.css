@@ -306,7 +306,7 @@ body {
 
 .badge-dynamic-text {
     font-family: 'Playfair Display', serif;
-    font-size: 1rem;
+    font-size: 0.8rem;
     font-weight: 700;
     font-style: italic;
     color: #000000; /* Noir pour être lisible sur le fond jaune */
@@ -534,7 +534,7 @@ body {
     }
 
     .badge-dynamic-text {
-        font-size: 1.2rem;
+        font-size: 1rem;
     }
 
     .badge-dynamic-text span {
