@@ -35,7 +35,11 @@ function init() {
 
 function setupEventListeners() {
     // Photo upload click handler
-    photoUpload.addEventListener('click', () => photoInput.click());
+    photoUpload.addEventListener('click', (e) => {
+        if (e.target !== photoInput) {
+            photoInput.click();
+        }
+    });
     
     // Photo input change handler
     photoInput.addEventListener('change', handlePhotoSelect);
@@ -64,6 +68,8 @@ function handlePhotoSelect(e) {
     const file = e.target.files[0];
     if (file) {
         processPhoto(file);
+        // Reset input to allow selecting the same file again
+        e.target.value = '';
     }
 }
 
@@ -108,6 +114,9 @@ function processPhoto(file) {
         photoPreview.src = e.target.result;
         photoPreview.classList.add('active');
         uploadPlaceholder.style.display = 'none';
+    };
+    reader.onerror = () => {
+        alert('Erreur lors de la lecture du fichier.');
     };
     reader.readAsDataURL(file);
 }
