@@ -22,28 +22,15 @@ const newBadgeBtn = document.getElementById('newBadgeBtn');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const formSection = document.querySelector('.form-section');
 
-// Crop Modal Elements
-const cropModal = document.getElementById('cropModal');
-const cropImage = document.getElementById('cropImage');
-const cropConfirm = document.getElementById('cropConfirm');
-const cropCancel = document.getElementById('cropCancel');
-const cropZoomIn = document.getElementById('cropZoomIn');
-const cropZoomOut = document.getElementById('cropZoomOut');
-const cropRotateLeft = document.getElementById('cropRotateLeft');
-const cropRotateRight = document.getElementById('cropRotateRight');
-const cropReset = document.getElementById('cropReset');
-
 // Store the generated image
 let generatedImageBlob = null;
 let generatedImageUrl = null;
-let cropper = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
     setupEventListeners();
-    // setupCropperEvents(); // Removed
 }
 
 function setupEventListeners() {
@@ -71,13 +58,6 @@ function setupEventListeners() {
     photoUpload.addEventListener('dragleave', handleDragLeave);
     photoUpload.addEventListener('drop', handleDrop);
 }
-
-/* Cropper events removed
-// Setup Cropper events
-function setupCropperEvents() {
-    // ...
-}
-*/
 
 // Photo handling
 function handlePhotoSelect(e) {
@@ -125,37 +105,12 @@ function processPhoto(file) {
     
     const reader = new FileReader();
     reader.onload = (e) => {
-        // Direct display without cropping
         photoPreview.src = e.target.result;
         photoPreview.classList.add('active');
         uploadPlaceholder.style.display = 'none';
     };
     reader.readAsDataURL(file);
 }
-
-/* Cropping functionality removed as requested
-// Open crop modal
-function openCropModal(imageSrc) {
-    // ...
-}
-*/
-
-/* Crop functions removed
-// Confirm crop
-function confirmCrop() {
-    // ...
-}
-
-// Cancel crop
-function cancelCrop() {
-    // ...
-}
-
-// Close crop modal
-function closeCropModal() {
-    // ...
-}
-*/
 
 // Form submission
 async function handleFormSubmit(e) {
