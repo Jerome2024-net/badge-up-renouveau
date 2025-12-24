@@ -21,16 +21,27 @@ const shareFacebook = document.getElementById('shareFacebook');
 const newBadgeBtn = document.getElementById('newBadgeBtn');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const formSection = document.querySelector('.form-section');
+const zoomInBtn = document.getElementById('zoomInBtn');
+const zoomOutBtn = document.getElementById('zoomOutBtn');
+const badgePhotoZone = document.getElementById('badgePhotoZone');
 
 // Store the generated image
 let generatedImageBlob = null;
 let generatedImageUrl = null;
+
+// Image adjustment state
+let currentScale = 1;
+let currentX = 0;
+let currentY = 0;
+let isDragging = false;
+let startX, startY;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
     setupEventListeners();
+    setupImageAdjustment();
 }
 
 function setupEventListeners() {
@@ -155,6 +166,12 @@ async function handleFormSubmit(e) {
     // Update badge content
     badgeName.textContent = `${prenom} ${nom.toUpperCase()}`;
     badgePhoto.src = photoSrc;
+    
+    // Reset adjustments
+    currentScale = 1;
+    currentX = 0;
+    currentY = 0;
+    updateImageTransform();
     
     // Wait for image to load and adjust position
     await new Promise((resolve) => {
@@ -348,4 +365,75 @@ function showLoading() {
 
 function hideLoading() {
     loadingOverlay.classList.remove('active');
+}
+
+// Image Adjustment Logic
+function setupImageAdjustment() {
+    // Zoom buttons
+    zoomInBtn.addEventListener('click', () => updateZoom(0.1));
+    zoomOutBtn.addEventListener('click', () => updateZoom(-0.1));
+
+    // Dragging events for Mouse
+    badgePhotoZone.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', stopDrag);
+
+    // Dragging events for Touch
+    badgePhotoZone.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('touchmove', drag, { passive: false });
+    document.addEventListener('touchend', stopDrag);
+}
+
+function updateZoom(delta) {
+    currentScale += delta;
+    if (currentScale < 0.5) currentScale = 0.5; // Min zoom
+    if (currentScale > 3) currentScale = 3;     // Max zoom
+    updateImageTransform();
+}
+
+function startDrag(e) {
+    if (e.target !== badgePhoto && e.target !== badgePhotoZone) return;
+    
+    isDragging = true;
+    
+    // Get start position
+    if (e.type === 'touchstart') {
+        startX = e.touches[0].clientX - currentX;
+        startY = e.touches[0].clientY - currentY;
+    } else {
+        startX = e.clientX - currentX;
+        startY = e.clientY - currentY;
+    }
+    
+    badgePhotoZone.style.cursor = 'grabbing';
+}
+
+function drag(e) {
+    if (!isDragging) return;
+    
+    e.preventDefault(); // Prevent scrolling on touch
+    
+    let clientX, clientY;
+    
+    if (e.type === 'touchmove') {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    
+    currentX = clientX - startX;
+    currentY = clientY - startY;
+    
+    updateImageTransform();
+}
+
+function stopDrag() {
+    isDragging = false;
+    badgePhotoZone.style.cursor = 'move';
+}
+
+function updateImageTransform() {
+    badgePhoto.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`;
 }

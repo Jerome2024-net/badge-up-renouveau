@@ -323,6 +323,50 @@ body {
     font-size: 1em;
 }
 
+/* Adjustment Controls */
+.adjustment-controls {
+    margin: 1rem 0;
+    text-align: center;
+}
+
+.adjustment-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.zoom-controls {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.btn-zoom {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    background: white;
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-zoom:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.badge-photo-zone {
+    cursor: move; /* Indicate that the photo can be moved */
+    touch-action: none; /* Prevent scrolling while dragging on mobile */
+}
+
 /* =====================
    ACTION BUTTONS
    ===================== */
