@@ -273,10 +273,10 @@ body {
 }
 
 .badge-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
+    /* object-fit removed to allow manual positioning via transform */
+    max-width: none;
+    max-height: none;
+    will-change: transform;
 }
 
 /* ZONE 2 : Cadre du badge (Image fournie) */

@@ -163,6 +163,10 @@ async function handleFormSubmit(e) {
     // Show loading
     showLoading();
     
+    // Switch views immediately to ensure dimensions are available for calculation
+    formSection.style.display = 'none';
+    badgeSection.style.display = 'block';
+
     // Update badge content
     badgeName.textContent = `${prenom} ${nom.toUpperCase()}`;
     badgePhoto.src = photoSrc;
@@ -176,13 +180,7 @@ async function handleFormSubmit(e) {
     // Wait for image to load and adjust position
     await new Promise((resolve) => {
         const adjustAndResolve = () => {
-            // Automatic cropping heuristic:
-            // If image is portrait (taller than wide), focus on the top part (face)
-            if (badgePhoto.naturalHeight > badgePhoto.naturalWidth) {
-                badgePhoto.style.objectPosition = 'center 15%';
-            } else {
-                badgePhoto.style.objectPosition = 'center center';
-            }
+            fitImageToZone();
             resolve();
         };
 
@@ -192,10 +190,6 @@ async function handleFormSubmit(e) {
             badgePhoto.onload = adjustAndResolve;
         }
     });
-    
-    // Show badge section and hide form
-    formSection.style.display = 'none';
-    badgeSection.style.display = 'block';
     
     // Generate image
     await generateBadgeImage();
@@ -436,4 +430,31 @@ function stopDrag() {
 
 function updateImageTransform() {
     badgePhoto.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`;
+}
+
+function fitImageToZone() {
+    const zoneWidth = badgePhotoZone.offsetWidth;
+    const zoneHeight = badgePhotoZone.offsetHeight;
+    const imgWidth = badgePhoto.naturalWidth;
+    const imgHeight = badgePhoto.naturalHeight;
+    
+    if (!zoneWidth || !zoneHeight || !imgWidth || !imgHeight) return;
+    
+    const zoneRatio = zoneWidth / zoneHeight;
+    const imgRatio = imgWidth / imgHeight;
+    
+    if (imgRatio > zoneRatio) {
+        // Image is wider than zone: fit height
+        badgePhoto.style.height = '100%';
+        badgePhoto.style.width = 'auto';
+    } else {
+        // Image is taller than zone: fit width
+        badgePhoto.style.width = '100%';
+        badgePhoto.style.height = 'auto';
+        
+        // Optional: Adjust Y to show face (top part) for portrait images
+        // Since flex centers it, the top is cut off.
+        // To show the top, we would need to translate Y positive.
+        // For now, we leave it centered as the user can drag it.
+    }
 }
