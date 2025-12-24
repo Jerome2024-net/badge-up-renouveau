@@ -362,60 +362,109 @@ function hideLoading() {
 }
 
 // Image Adjustment Logic
+let initialPinchDistance = null;
+let initialScale = null;
+
 function setupImageAdjustment() {
     // Zoom buttons
     zoomInBtn.addEventListener('click', () => updateZoom(0.1));
     zoomOutBtn.addEventListener('click', () => updateZoom(-0.1));
 
     // Dragging events for Mouse
-    badgePhotoZone.addEventListener('mousedown', startDrag);
+    badge.addEventListener('mousedown', startDrag);
     document.addEventListener('mousemove', drag);
     document.addEventListener('mouseup', stopDrag);
 
-    // Dragging events for Touch
-    badgePhotoZone.addEventListener('touchstart', startDrag, { passive: false });
-    document.addEventListener('touchmove', drag, { passive: false });
-    document.addEventListener('touchend', stopDrag);
+    // Touch events (Drag + Pinch)
+    badge.addEventListener('touchstart', handleTouchStart, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
 }
 
 function updateZoom(delta) {
     currentScale += delta;
-    if (currentScale < 0.5) currentScale = 0.5; // Min zoom
-    if (currentScale > 3) currentScale = 3;     // Max zoom
+    if (currentScale < 0.1) currentScale = 0.1; // Min zoom
+    if (currentScale > 5) currentScale = 5;     // Max zoom
     updateImageTransform();
 }
 
+// Mouse Drag
 function startDrag(e) {
-    if (e.target !== badgePhoto && e.target !== badgePhotoZone) return;
+    // Only allow dragging if we are clicking on the badge area
+    // We don't check for specific target because overlays might block it
     
     isDragging = true;
-    
-    // Get start position
-    if (e.type === 'touchstart') {
+    startX = e.clientX - currentX;
+    startY = e.clientY - currentY;
+    badgePhotoZone.style.cursor = 'grabbing';
+}
+
+// Touch Handlers
+function handleTouchStart(e) {
+    if (e.touches.length === 2) {
+        // Pinch start
+        e.preventDefault();
+        isDragging = false; // Stop dragging if pinching
+        initialPinchDistance = getPinchDistance(e);
+        initialScale = currentScale;
+    } else if (e.touches.length === 1) {
+        // Drag start
+        e.preventDefault(); // Prevent scrolling
+        isDragging = true;
         startX = e.touches[0].clientX - currentX;
         startY = e.touches[0].clientY - currentY;
-    } else {
-        startX = e.clientX - currentX;
-        startY = e.clientY - currentY;
     }
-    
-    badgePhotoZone.style.cursor = 'grabbing';
+}
+
+function handleTouchMove(e) {
+    if (e.touches.length === 2 && initialPinchDistance) {
+        // Pinch move
+        e.preventDefault();
+        const currentDistance = getPinchDistance(e);
+        const scaleDiff = currentDistance / initialPinchDistance;
+        currentScale = initialScale * scaleDiff;
+        
+        // Clamp scale
+        if (currentScale < 0.1) currentScale = 0.1;
+        if (currentScale > 5) currentScale = 5;
+        
+        updateImageTransform();
+    } else if (e.touches.length === 1 && isDragging) {
+        // Drag move
+        e.preventDefault();
+        const clientX = e.touches[0].clientX;
+        const clientY = e.touches[0].clientY;
+        
+        currentX = clientX - startX;
+        currentY = clientY - startY;
+        
+        updateImageTransform();
+    }
+}
+
+function handleTouchEnd(e) {
+    if (e.touches.length < 2) {
+        initialPinchDistance = null;
+    }
+    if (e.touches.length === 0) {
+        isDragging = false;
+    }
+}
+
+function getPinchDistance(e) {
+    return Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+    );
 }
 
 function drag(e) {
     if (!isDragging) return;
     
-    e.preventDefault(); // Prevent scrolling on touch
+    e.preventDefault();
     
-    let clientX, clientY;
-    
-    if (e.type === 'touchmove') {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-    } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
-    }
+    const clientX = e.clientX;
+    const clientY = e.clientY;
     
     currentX = clientX - startX;
     currentY = clientY - startY;

@@ -255,6 +255,7 @@ body {
     overflow: hidden;
     background: var(--blanc);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+    touch-action: none; /* Prevent browser handling of gestures */
 }
 
 /* ZONE 1 : Photo utilisateur (Arrière-plan) */
