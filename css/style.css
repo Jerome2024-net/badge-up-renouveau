@@ -297,7 +297,7 @@ body {
 /* ZONE 3 : Texte dynamique (Nom) */
 .badge-text-overlay {
     position: absolute;
-    bottom: 26%; /* Remonté pour s'éloigner du slogan */
+    bottom: 24%; /* Position équilibrée entre logo et slogan */
     left: 0;
     width: 100%;
     text-align: center;
@@ -530,7 +530,7 @@ body {
     }
 
     .badge-text-overlay {
-        bottom: 26%;
+        bottom: 24%;
         padding: 0 30px;
     }
 
