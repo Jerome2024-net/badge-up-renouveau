@@ -245,12 +245,14 @@ body {
     display: flex;
     justify-content: center;
     margin-bottom: 1.5rem;
+    width: 100%;
 }
 
 /* Badge principal - Format carré */
 .badge {
-    width: 320px;
-    height: 320px;
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 1 / 1;
     position: relative;
     overflow: hidden;
     background: var(--blanc);
@@ -524,8 +526,7 @@ body {
 
     /* Badge responsive */
     .badge {
-        width: 450px;
-        height: 450px;
+        max-width: 450px;
     }
 
     .badge-text-overlay {
