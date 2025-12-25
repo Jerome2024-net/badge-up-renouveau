@@ -24,6 +24,7 @@ const formSection = document.querySelector('.form-section');
 const zoomInBtn = document.getElementById('zoomInBtn');
 const zoomOutBtn = document.getElementById('zoomOutBtn');
 const badgePhotoZone = document.getElementById('badgePhotoZone');
+const badgeTextOverlay = document.getElementById('badgeTextOverlay');
 
 // Store the generated image
 let generatedImageBlob = null;
@@ -36,12 +37,19 @@ let currentY = 0;
 let isDragging = false;
 let startX, startY;
 
+// Text adjustment state
+let textX = 0;
+let textY = 0;
+let isTextDragging = false;
+let textStartX, textStartY;
+
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
     setupEventListeners();
     setupImageAdjustment();
+    setupTextAdjustment();
 }
 
 function setupEventListeners() {
@@ -176,6 +184,9 @@ async function handleFormSubmit(e) {
     currentX = 0;
     currentY = 0;
     updateImageTransform();
+    
+    // Reset text position
+    resetTextPosition();
     
     // Wait for image to load and adjust position
     await new Promise((resolve) => {
@@ -506,4 +517,66 @@ function fitImageToZone() {
         // To show the top, we would need to translate Y positive.
         // For now, we leave it centered as the user can drag it.
     }
+}
+
+// Text Adjustment Logic
+function setupTextAdjustment() {
+    // Mouse events for text
+    badgeTextOverlay.addEventListener('mousedown', startTextDrag);
+    document.addEventListener('mousemove', dragText);
+    document.addEventListener('mouseup', stopTextDrag);
+
+    // Touch events for text
+    badgeTextOverlay.addEventListener('touchstart', startTextDragTouch, { passive: false });
+    document.addEventListener('touchmove', dragTextTouch, { passive: false });
+    document.addEventListener('touchend', stopTextDrag);
+}
+
+function startTextDrag(e) {
+    e.stopPropagation(); // Prevent triggering image drag
+    isTextDragging = true;
+    textStartX = e.clientX - textX;
+    textStartY = e.clientY - textY;
+}
+
+function startTextDragTouch(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    isTextDragging = true;
+    textStartX = e.touches[0].clientX - textX;
+    textStartY = e.touches[0].clientY - textY;
+}
+
+function dragText(e) {
+    if (!isTextDragging) return;
+    e.preventDefault();
+    
+    textX = e.clientX - textStartX;
+    textY = e.clientY - textStartY;
+    
+    updateTextTransform();
+}
+
+function dragTextTouch(e) {
+    if (!isTextDragging) return;
+    e.preventDefault();
+    
+    textX = e.touches[0].clientX - textStartX;
+    textY = e.touches[0].clientY - textStartY;
+    
+    updateTextTransform();
+}
+
+function stopTextDrag() {
+    isTextDragging = false;
+}
+
+function updateTextTransform() {
+    badgeTextOverlay.style.transform = `translate(calc(-50% + ${textX}px), ${textY}px)`;
+}
+
+function resetTextPosition() {
+    textX = 0;
+    textY = 0;
+    updateTextTransform();
 }
