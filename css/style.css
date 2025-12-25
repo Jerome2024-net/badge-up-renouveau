@@ -295,26 +295,13 @@ body {
 /* ZONE 3 : Texte dynamique (Nom) */
 .badge-text-overlay {
     position: absolute;
-    bottom: 22%; /* Position initiale */
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 22%; /* Descendu pour s'éloigner du logo */
+    left: 0;
+    width: 100%;
     text-align: center;
-    z-index: 4;
-    padding: 5px 15px;
-    pointer-events: auto; /* Permettre le déplacement */
-    cursor: move;
-    touch-action: none;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 5px;
-    transition: background 0.2s;
-}
-
-.badge-text-overlay:hover {
-    background: rgba(255, 255, 255, 0.5);
-}
-
-.badge-text-overlay:active {
-    background: rgba(255, 255, 255, 0.6);
+    z-index: 3;
+    padding: 0 20px;
+    pointer-events: none;
 }
 
 .badge-dynamic-text {
