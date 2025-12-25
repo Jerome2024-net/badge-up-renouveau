@@ -250,15 +250,12 @@ body {
 /* Badge principal - Format carré */
 .badge {
     width: 320px;
-    max-width: 100%;
-    aspect-ratio: 1 / 1;
-    height: auto; /* Allow height to adjust based on width to maintain square ratio */
+    height: 320px;
     position: relative;
     overflow: hidden;
     background: var(--blanc);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
     touch-action: none; /* Prevent browser handling of gestures */
-    flex-shrink: 0; /* Prevent shrinking if possible, but max-width handles it */
 }
 
 /* ZONE 1 : Photo utilisateur (Arrière-plan) */
@@ -528,8 +525,7 @@ body {
     /* Badge responsive */
     .badge {
         width: 450px;
-        height: auto;
-        aspect-ratio: 1 / 1;
+        height: 450px;
     }
 
     .badge-text-overlay {
