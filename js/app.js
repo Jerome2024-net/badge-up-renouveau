@@ -268,26 +268,47 @@ async function generateBadgeImage() {
     }
 }
 
-// Download handler
+// Download handler - Always regenerate to capture user adjustments
 async function handleDownload() {
-    if (!generatedImageBlob) {
-        await generateBadgeImage();
-    }
-    
     const prenom = prenomInput.value.trim();
     const nom = nomInput.value.trim();
     const filename = `badge_UP_${prenom}_${nom}.png`.replace(/\s+/g, '_');
     
-    // Create download link
-    const link = document.createElement('a');
-    link.href = generatedImageUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Always regenerate to capture current adjustments (zoom, position)
+    try {
+        const badgeWidth = badge.offsetWidth;
+        const targetSize = 1080;
+        const scale = targetSize / badgeWidth;
+        
+        const canvas = await html2canvas(badge, {
+            scale: scale,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            logging: false,
+            width: badgeWidth,
+            height: badgeWidth
+        });
+        
+        // Download the freshly generated image
+        canvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 'image/png', 1.0);
+        
+    } catch (error) {
+        console.error('Error downloading badge:', error);
+        alert('Une erreur est survenue lors du téléchargement.');
+    }
 }
 
-// WhatsApp share handler
+// WhatsApp share handler - Regenerate to capture adjustments
 async function handleWhatsAppShare() {
     const prenom = prenomInput.value.trim();
     const nom = nomInput.value.trim();
@@ -299,10 +320,27 @@ async function handleWhatsAppShare() {
 
 #UPLeRenouveau #JeMaintiensLeCap #Elections2025 #Benin`;
     
-    // Try Web Share API first (mobile)
-    if (navigator.canShare && generatedImageBlob) {
-        try {
-            const file = new File([generatedImageBlob], `badge_UP_${prenom}_${nom}.png`, { type: 'image/png' });
+    // Regenerate image to capture current adjustments
+    try {
+        const badgeWidth = badge.offsetWidth;
+        const targetSize = 1080;
+        const scale = targetSize / badgeWidth;
+        
+        const canvas = await html2canvas(badge, {
+            scale: scale,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            logging: false,
+            width: badgeWidth,
+            height: badgeWidth
+        });
+        
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
+        
+        // Try Web Share API first (mobile)
+        if (navigator.canShare) {
+            const file = new File([blob], `badge_UP_${prenom}_${nom}.png`, { type: 'image/png' });
             
             if (navigator.canShare({ files: [file] })) {
                 await navigator.share({
@@ -312,9 +350,9 @@ async function handleWhatsAppShare() {
                 });
                 return;
             }
-        } catch (error) {
-            console.log('Web Share failed, using WhatsApp URL');
         }
+    } catch (error) {
+        console.log('Web Share failed, using WhatsApp URL');
     }
     
     // Fallback: Open WhatsApp with message
@@ -322,7 +360,7 @@ async function handleWhatsAppShare() {
     window.open(whatsappUrl, '_blank');
 }
 
-// Facebook share handler
+// Facebook share handler - Regenerate to capture adjustments
 async function handleFacebookShare() {
     const prenom = prenomInput.value.trim();
     const nom = nomInput.value.trim();
@@ -334,10 +372,27 @@ async function handleFacebookShare() {
 
 #UPLeRenouveau #JeMaintiensLeCap #Elections2025`;
     
-    // Try Web Share API first (mobile)
-    if (navigator.canShare && generatedImageBlob) {
-        try {
-            const file = new File([generatedImageBlob], `badge_UP_${prenom}_${nom}.png`, { type: 'image/png' });
+    // Regenerate image to capture current adjustments
+    try {
+        const badgeWidth = badge.offsetWidth;
+        const targetSize = 1080;
+        const scale = targetSize / badgeWidth;
+        
+        const canvas = await html2canvas(badge, {
+            scale: scale,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            logging: false,
+            width: badgeWidth,
+            height: badgeWidth
+        });
+        
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
+        
+        // Try Web Share API first (mobile)
+        if (navigator.canShare) {
+            const file = new File([blob], `badge_UP_${prenom}_${nom}.png`, { type: 'image/png' });
             
             if (navigator.canShare({ files: [file] })) {
                 await navigator.share({
@@ -347,9 +402,9 @@ async function handleFacebookShare() {
                 });
                 return;
             }
-        } catch (error) {
-            console.log('Web Share failed, using Facebook URL');
         }
+    } catch (error) {
+        console.log('Web Share failed, using Facebook URL');
     }
     
     // Fallback: Open Facebook share dialog
