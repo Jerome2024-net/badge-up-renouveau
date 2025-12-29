@@ -284,22 +284,13 @@ async function handleFormSubmit(e) {
     badgeSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Generate badge image - 1080x1080px HD (initial generation for gallery)
+// Generate badge image - 1080x1080px HD
 async function generateBadgeImage() {
     try {
         const blob = await generateBadgeWithAdjustments();
         
         generatedImageBlob = blob;
         generatedImageUrl = URL.createObjectURL(blob);
-        
-        // Auto-publish to gallery
-        const prenom = prenomInput.value.trim();
-        const nom = nomInput.value.trim();
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-            await saveBadgeToGallery(reader.result, prenom, nom);
-        };
-        reader.readAsDataURL(blob);
         
     } catch (error) {
         console.error('Error generating badge:', error);
@@ -308,15 +299,19 @@ async function generateBadgeImage() {
 }
 
 // Download handler - Always regenerate to capture user adjustments
+// Track if badge was already published to gallery
+let badgePublishedToGallery = false;
+
 async function handleDownload() {
     const prenom = prenomInput.value.trim();
     const nom = nomInput.value.trim();
     const filename = `badge_UP_${prenom}_${nom}.png`.replace(/\s+/g, '_');
     
     try {
+        // Generate HIGH QUALITY image (1080px PNG)
         const blob = await generateBadgeWithAdjustments();
         
-        // Download the image
+        // Download the HIGH QUALITY image
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -325,6 +320,16 @@ async function handleDownload() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        
+        // Auto-publish to gallery (only once per badge)
+        if (!badgePublishedToGallery) {
+            badgePublishedToGallery = true;
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                await saveBadgeToGallery(reader.result, prenom, nom);
+            };
+            reader.readAsDataURL(blob);
+        }
         
     } catch (error) {
         console.error('Error downloading badge:', error);
@@ -505,6 +510,9 @@ async function handleFacebookShare() {
 function resetForm() {
     // Reset form fields
     badgeForm.reset();
+    
+    // Reset gallery publish flag
+    badgePublishedToGallery = false;
     
     // Reset photo preview
     photoPreview.src = '';
@@ -810,8 +818,8 @@ function saveGalleryData(data) {
 // Save badge - Upload to Cloudinary then API/Local
 async function saveBadgeToGallery(imageDataUrl, prenom, nom) {
     try {
-        // 1. Compress image first (540px, 70% quality = ~50KB instead of ~1MB)
-        const compressedImage = await compressImage(imageDataUrl, 540, 0.7);
+        // 1. Compress image for storage (720px, 85% quality = good quality, ~100KB)
+        const compressedImage = await compressImage(imageDataUrl, 720, 0.85);
         
         // 2. Try to upload to Cloudinary for permanent storage
         let finalImageUrl = compressedImage;
@@ -841,8 +849,8 @@ async function saveBadgeToGallery(imageDataUrl, prenom, nom) {
         throw new Error('API error');
     } catch (error) {
         console.log('API not available, saving to local storage (compressed)');
-        // Fallback: save compressed image locally
-        const compressedImage = await compressImage(imageDataUrl, 400, 0.6);
+        // Fallback: save compressed image locally (smaller for localStorage limits)
+        const compressedImage = await compressImage(imageDataUrl, 540, 0.75);
         saveToLocalGallery(compressedImage, prenom, nom, {
             id: Date.now().toString(),
             prenom,
