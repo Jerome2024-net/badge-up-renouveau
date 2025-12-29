@@ -229,38 +229,22 @@ async function handleFormSubmit(e) {
     badgeSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Generate badge image using html2canvas - 1080x1080px HD
+// Generate badge image - 1080x1080px HD (initial generation for gallery)
 async function generateBadgeImage() {
     try {
-        // Calculate scale to get 1080px output
-        const badgeWidth = badge.offsetWidth;
-        const targetSize = 1080;
-        const scale = targetSize / badgeWidth;
+        const blob = await generateBadgeWithAdjustments();
         
-        const canvas = await html2canvas(badge, {
-            scale: scale,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: null,
-            logging: false,
-            width: badgeWidth,
-            height: badgeWidth // Square format
-        });
+        generatedImageBlob = blob;
+        generatedImageUrl = URL.createObjectURL(blob);
         
-        // Convert to blob and auto-publish to gallery
-        canvas.toBlob(async (blob) => {
-            generatedImageBlob = blob;
-            generatedImageUrl = URL.createObjectURL(blob);
-            
-            // Auto-publish to gallery
-            const prenom = prenomInput.value.trim();
-            const nom = nomInput.value.trim();
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                await saveBadgeToGallery(reader.result, prenom, nom);
-            };
-            reader.readAsDataURL(blob);
-        }, 'image/png', 1.0);
+        // Auto-publish to gallery
+        const prenom = prenomInput.value.trim();
+        const nom = nomInput.value.trim();
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            await saveBadgeToGallery(reader.result, prenom, nom);
+        };
+        reader.readAsDataURL(blob);
         
     } catch (error) {
         console.error('Error generating badge:', error);
@@ -274,38 +258,109 @@ async function handleDownload() {
     const nom = nomInput.value.trim();
     const filename = `badge_UP_${prenom}_${nom}.png`.replace(/\s+/g, '_');
     
-    // Always regenerate to capture current adjustments (zoom, position)
     try {
-        const badgeWidth = badge.offsetWidth;
-        const targetSize = 1080;
-        const scale = targetSize / badgeWidth;
+        const blob = await generateBadgeWithAdjustments();
         
-        const canvas = await html2canvas(badge, {
-            scale: scale,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: null,
-            logging: false,
-            width: badgeWidth,
-            height: badgeWidth
-        });
-        
-        // Download the freshly generated image
-        canvas.toBlob((blob) => {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }, 'image/png', 1.0);
+        // Download the image
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         
     } catch (error) {
         console.error('Error downloading badge:', error);
         alert('Une erreur est survenue lors du téléchargement.');
     }
+}
+
+// Generate badge with proper adjustments using manual canvas drawing
+async function generateBadgeWithAdjustments() {
+    const targetSize = 1080;
+    const canvas = document.createElement('canvas');
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+    const ctx = canvas.getContext('2d');
+    
+    // Get badge dimensions for scale calculation
+    const badgeRect = badge.getBoundingClientRect();
+    const scaleFactor = targetSize / badgeRect.width;
+    
+    // 1. Draw white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, targetSize, targetSize);
+    
+    // 2. Draw user photo with adjustments
+    if (badgePhoto.src && badgePhoto.complete) {
+        const photoZoneRect = badgePhotoZone.getBoundingClientRect();
+        const photoRect = badgePhoto.getBoundingClientRect();
+        
+        // Calculate photo position relative to badge
+        const photoRelativeX = (photoRect.left - badgeRect.left) * scaleFactor;
+        const photoRelativeY = (photoRect.top - badgeRect.top) * scaleFactor;
+        const photoWidth = photoRect.width * scaleFactor;
+        const photoHeight = photoRect.height * scaleFactor;
+        
+        // Create clipping region for the photo zone
+        const zoneX = (photoZoneRect.left - badgeRect.left) * scaleFactor;
+        const zoneY = (photoZoneRect.top - badgeRect.top) * scaleFactor;
+        const zoneWidth = photoZoneRect.width * scaleFactor;
+        const zoneHeight = photoZoneRect.height * scaleFactor;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(zoneX, zoneY, zoneWidth, zoneHeight);
+        ctx.clip();
+        
+        // Draw the photo at its current visual position
+        ctx.drawImage(badgePhoto, photoRelativeX, photoRelativeY, photoWidth, photoHeight);
+        ctx.restore();
+    }
+    
+    // 3. Draw the frame overlay
+    const frameImg = document.querySelector('.badge-frame');
+    if (frameImg && frameImg.complete) {
+        ctx.drawImage(frameImg, 0, 0, targetSize, targetSize);
+    }
+    
+    // 4. Draw the text
+    const textContent = badgeName.textContent;
+    if (textContent) {
+        const textOverlay = document.querySelector('.badge-text-overlay');
+        const textElement = document.querySelector('.badge-dynamic-text');
+        
+        if (textOverlay && textElement) {
+            const textRect = textOverlay.getBoundingClientRect();
+            const textY = (textRect.top - badgeRect.top + textRect.height / 2) * scaleFactor;
+            
+            // Get computed styles
+            const computedStyle = window.getComputedStyle(textElement);
+            const fontSize = parseFloat(computedStyle.fontSize) * scaleFactor;
+            const fontFamily = computedStyle.fontFamily;
+            const color = computedStyle.color;
+            
+            ctx.font = `700 ${fontSize}px ${fontFamily}`;
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Draw text with shadow for better visibility
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 4 * scaleFactor;
+            ctx.shadowOffsetX = 2 * scaleFactor;
+            ctx.shadowOffsetY = 2 * scaleFactor;
+            
+            ctx.fillText(`Je suis ${textContent}`, targetSize / 2, textY);
+        }
+    }
+    
+    // Convert to blob
+    return new Promise(resolve => {
+        canvas.toBlob(resolve, 'image/png', 1.0);
+    });
 }
 
 // WhatsApp share handler - Regenerate to capture adjustments
@@ -320,23 +375,9 @@ async function handleWhatsAppShare() {
 
 #UPLeRenouveau #JeMaintiensLeCap #Elections2025 #Benin`;
     
-    // Regenerate image to capture current adjustments
+    // Regenerate image with adjustments
     try {
-        const badgeWidth = badge.offsetWidth;
-        const targetSize = 1080;
-        const scale = targetSize / badgeWidth;
-        
-        const canvas = await html2canvas(badge, {
-            scale: scale,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: null,
-            logging: false,
-            width: badgeWidth,
-            height: badgeWidth
-        });
-        
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
+        const blob = await generateBadgeWithAdjustments();
         
         // Try Web Share API first (mobile)
         if (navigator.canShare) {
@@ -372,23 +413,9 @@ async function handleFacebookShare() {
 
 #UPLeRenouveau #JeMaintiensLeCap #Elections2025`;
     
-    // Regenerate image to capture current adjustments
+    // Regenerate image with adjustments
     try {
-        const badgeWidth = badge.offsetWidth;
-        const targetSize = 1080;
-        const scale = targetSize / badgeWidth;
-        
-        const canvas = await html2canvas(badge, {
-            scale: scale,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: null,
-            logging: false,
-            width: badgeWidth,
-            height: badgeWidth
-        });
-        
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
+        const blob = await generateBadgeWithAdjustments();
         
         // Try Web Share API first (mobile)
         if (navigator.canShare) {
