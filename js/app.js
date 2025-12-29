@@ -85,6 +85,7 @@ function setupEventListeners() {
     
     // Gallery events
     clearGalleryBtn.addEventListener('click', clearGallery);
+    document.getElementById('publishToGallery').addEventListener('click', handlePublishToGallery);
 }
 
 // Photo handling
@@ -236,9 +237,6 @@ async function generateBadgeImage() {
         canvas.toBlob((blob) => {
             generatedImageBlob = blob;
             generatedImageUrl = URL.createObjectURL(blob);
-            
-            // Save to gallery
-            saveBadgeToGallery(canvas.toDataURL('image/png'), prenomInput.value.trim(), nomInput.value.trim());
         }, 'image/png', 1.0);
         
     } catch (error) {
@@ -742,4 +740,38 @@ function handleModalEscape(e) {
     if (e.key === 'Escape') {
         closeGalleryModal();
     }
+}
+
+// Publish to gallery handler
+async function handlePublishToGallery() {
+    if (!generatedImageBlob) {
+        alert('Veuillez d\'abord générer un badge.');
+        return;
+    }
+    
+    const prenom = prenomInput.value.trim();
+    const nom = nomInput.value.trim();
+    
+    // Convert blob to data URL for storage
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        saveBadgeToGallery(reader.result, prenom, nom);
+        
+        // Show confirmation
+        const btn = document.getElementById('publishToGallery');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Publié !</span>';
+        btn.style.background = 'var(--primary-color)';
+        btn.disabled = true;
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.style.background = '';
+            btn.disabled = false;
+        }, 2000);
+        
+        // Scroll to gallery
+        gallerySection.scrollIntoView({ behavior: 'smooth' });
+    };
+    reader.readAsDataURL(generatedImageBlob);
 }
