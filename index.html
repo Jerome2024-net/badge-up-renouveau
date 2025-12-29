@@ -12,6 +12,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 </head>
 <body>
     <div class="container">
@@ -22,6 +26,15 @@
             </div>
             <h1>UP – Le Renouveau</h1>
             <p class="subtitle">Créez votre badge de campagne</p>
+            <button class="btn btn-gallery-nav" id="openGalleryBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span>Voir la Galerie</span>
+                <span class="gallery-count" id="galleryCount">0</span>
+            </button>
         </header>
 
         <!-- Form Section -->
@@ -125,19 +138,27 @@
         <!-- Gallery Section -->
         <section class="gallery-section" id="gallerySection">
             <div class="gallery-header">
-                <h2>📸 Galerie des badges</h2>
-                <button class="btn-clear-gallery" id="clearGalleryBtn" title="Vider la galerie">
+                <div class="gallery-title-wrap">
+                    <h2>📸 Galerie Communautaire</h2>
+                    <span class="gallery-badge-count" id="galleryBadgeCount">0 badges</span>
+                </div>
+                <button class="btn-back-form" id="backToFormBtn">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
                     </svg>
+                    <span>Créer mon badge</span>
                 </button>
             </div>
-            <p class="gallery-subtitle">Badges précédemment générés</p>
+            <p class="gallery-subtitle">Badges publiés par les supporters UP – Le Renouveau</p>
+            <div class="gallery-loading" id="galleryLoading">
+                <div class="spinner-small"></div>
+                <span>Chargement des badges...</span>
+            </div>
             <div class="gallery-grid" id="galleryGrid">
                 <!-- Les badges seront ajoutés dynamiquement ici -->
             </div>
-            <p class="gallery-empty" id="galleryEmpty">Aucun badge dans la galerie pour le moment.</p>
+            <p class="gallery-empty" id="galleryEmpty">Soyez le premier à publier votre badge !</p>
         </section>
 
         <!-- Footer -->
@@ -153,6 +174,7 @@
     </div>
 
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="js/firebase-config.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

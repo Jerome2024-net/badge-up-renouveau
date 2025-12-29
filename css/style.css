@@ -93,6 +93,39 @@ body {
     color: var(--primary-dark);
 }
 
+/* Gallery Navigation Button */
+.btn-gallery-nav {
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--card-bg);
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+    border-radius: 50px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.btn-gallery-nav:hover {
+    background: var(--primary-color);
+    color: var(--text-light);
+}
+
+.gallery-count {
+    background: var(--accent-color);
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 50px;
+    min-width: 20px;
+    text-align: center;
+}
+
 /* Form Section */
 .form-section {
     background: var(--card-bg);
@@ -567,13 +600,27 @@ body {
     padding: 1.5rem;
     box-shadow: var(--shadow-lg);
     margin-bottom: 1.5rem;
+    display: none;
+}
+
+.gallery-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
 }
 
 .gallery-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.gallery-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
 .gallery-section h2 {
@@ -582,10 +629,60 @@ body {
     margin: 0;
 }
 
+.gallery-badge-count {
+    font-size: 0.8rem;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
 .gallery-subtitle {
     font-size: 0.85rem;
     color: var(--text-muted);
     margin-bottom: 1rem;
+}
+
+.btn-back-form {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: var(--transition);
+    font-family: inherit;
+}
+
+.btn-back-form:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.gallery-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+    gap: 0.75rem;
+}
+
+.gallery-loading.hidden {
+    display: none;
+}
+
+.spinner-small {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(30, 127, 67, 0.2);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
 .btn-clear-gallery {

@@ -29,13 +29,17 @@ const badgePhotoZone = document.getElementById('badgePhotoZone');
 const gallerySection = document.getElementById('gallerySection');
 const galleryGrid = document.getElementById('galleryGrid');
 const galleryEmpty = document.getElementById('galleryEmpty');
-const clearGalleryBtn = document.getElementById('clearGalleryBtn');
+const galleryLoading = document.getElementById('galleryLoading');
+const galleryCount = document.getElementById('galleryCount');
+const galleryBadgeCount = document.getElementById('galleryBadgeCount');
+const openGalleryBtn = document.getElementById('openGalleryBtn');
+const backToFormBtn = document.getElementById('backToFormBtn');
 
 // Store the generated image
 let generatedImageBlob = null;
 let generatedImageUrl = null;
 
-// Gallery storage key
+// Gallery storage key (for local fallback)
 const GALLERY_STORAGE_KEY = 'up_renouveau_badges_gallery';
 
 // Image adjustment state
@@ -51,7 +55,7 @@ document.addEventListener('DOMContentLoaded', init);
 function init() {
     setupEventListeners();
     setupImageAdjustment();
-    loadGallery();
+    updateGalleryCount();
 }
 
 function setupEventListeners() {
@@ -84,7 +88,8 @@ function setupEventListeners() {
     photoUpload.addEventListener('drop', handleDrop);
     
     // Gallery events
-    clearGalleryBtn.addEventListener('click', clearGallery);
+    openGalleryBtn.addEventListener('click', showGalleryView);
+    backToFormBtn.addEventListener('click', showFormView);
     document.getElementById('publishToGallery').addEventListener('click', handlePublishToGallery);
 }
 
@@ -526,6 +531,42 @@ function fitImageToZone() {
 // GALLERY FUNCTIONS
 // =====================
 
+// View switching
+function showGalleryView() {
+    formSection.style.display = 'none';
+    badgeSection.style.display = 'none';
+    gallerySection.classList.add('active');
+    loadGallery();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showFormView() {
+    gallerySection.classList.remove('active');
+    formSection.style.display = '';
+    badgeSection.style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Update gallery count in header
+async function updateGalleryCount() {
+    let count = 0;
+    
+    if (typeof firebaseInitialized !== 'undefined' && firebaseInitialized && db) {
+        try {
+            const snapshot = await db.collection('badges').get();
+            count = snapshot.size;
+        } catch (error) {
+            console.log('Fallback to local storage');
+            count = getGalleryData().length;
+        }
+    } else {
+        count = getGalleryData().length;
+    }
+    
+    galleryCount.textContent = count;
+    galleryBadgeCount.textContent = `${count} badge${count > 1 ? 's' : ''}`;
+}
+
 function getGalleryData() {
     try {
         const data = localStorage.getItem(GALLERY_STORAGE_KEY);
@@ -541,21 +582,92 @@ function saveGalleryData(data) {
         localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
         console.error('Error saving gallery data:', error);
-        // Handle quota exceeded
         if (error.name === 'QuotaExceededError') {
             alert('Espace de stockage insuffisant. Supprimez quelques badges de la galerie.');
         }
     }
 }
 
-function saveBadgeToGallery(imageDataUrl, prenom, nom) {
+// Save badge - Firebase or Local
+async function saveBadgeToGallery(imageDataUrl, prenom, nom) {
+    const badgeData = {
+        id: Date.now().toString(),
+        prenom: prenom,
+        nom: nom,
+        date: new Date().toISOString()
+    };
+    
+    // Try Firebase first
+    if (typeof firebaseInitialized !== 'undefined' && firebaseInitialized && db && storage) {
+        try {
+            showLoading();
+            
+            // Upload image to Firebase Storage
+            const imageRef = storage.ref().child(`badges/${badgeData.id}.png`);
+            
+            // Convert data URL to blob
+            const response = await fetch(imageDataUrl);
+            const blob = await response.blob();
+            
+            await imageRef.put(blob);
+            const imageUrl = await imageRef.getDownloadURL();
+            
+            // Create thumbnail
+            const thumbnailUrl = await createAndUploadThumbnail(imageDataUrl, badgeData.id);
+            
+            // Save to Firestore
+            await db.collection('badges').doc(badgeData.id).set({
+                ...badgeData,
+                imageUrl: imageUrl,
+                thumbnailUrl: thumbnailUrl
+            });
+            
+            hideLoading();
+            updateGalleryCount();
+            return;
+        } catch (error) {
+            console.error('Firebase error, falling back to local:', error);
+            hideLoading();
+        }
+    }
+    
+    // Fallback to local storage
+    saveToLocalGallery(imageDataUrl, prenom, nom, badgeData);
+}
+
+async function createAndUploadThumbnail(imageDataUrl, id) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = async () => {
+            const canvas = document.createElement('canvas');
+            const thumbnailSize = 300;
+            canvas.width = thumbnailSize;
+            canvas.height = thumbnailSize;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, thumbnailSize, thumbnailSize);
+            
+            canvas.toBlob(async (blob) => {
+                try {
+                    const thumbRef = storage.ref().child(`thumbnails/${id}.jpg`);
+                    await thumbRef.put(blob);
+                    const url = await thumbRef.getDownloadURL();
+                    resolve(url);
+                } catch (error) {
+                    resolve(imageDataUrl); // Fallback
+                }
+            }, 'image/jpeg', 0.7);
+        };
+        img.src = imageDataUrl;
+    });
+}
+
+function saveToLocalGallery(imageDataUrl, prenom, nom, badgeData) {
     const gallery = getGalleryData();
     
-    // Create thumbnail (smaller version to save space)
     const img = new Image();
     img.onload = () => {
         const canvas = document.createElement('canvas');
-        const thumbnailSize = 300; // Smaller size for gallery
+        const thumbnailSize = 300;
         canvas.width = thumbnailSize;
         canvas.height = thumbnailSize;
         const ctx = canvas.getContext('2d');
@@ -563,41 +675,63 @@ function saveBadgeToGallery(imageDataUrl, prenom, nom) {
         
         const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.8);
         
-        const badgeData = {
-            id: Date.now(),
-            prenom: prenom,
-            nom: nom,
+        const localBadgeData = {
+            ...badgeData,
             thumbnail: thumbnailDataUrl,
             fullImage: imageDataUrl,
-            date: new Date().toISOString()
+            isLocal: true
         };
         
-        // Add to beginning of array (newest first)
-        gallery.unshift(badgeData);
+        gallery.unshift(localBadgeData);
         
-        // Limit gallery size to prevent storage overflow (keep last 20)
         if (gallery.length > 20) {
             gallery.pop();
         }
         
         saveGalleryData(gallery);
-        loadGallery();
+        updateGalleryCount();
     };
     img.src = imageDataUrl;
 }
 
-function loadGallery() {
-    const gallery = getGalleryData();
+// Load gallery - Firebase or Local
+async function loadGallery() {
     galleryGrid.innerHTML = '';
+    galleryLoading.classList.remove('hidden');
+    galleryEmpty.classList.remove('visible');
     
-    if (gallery.length === 0) {
+    let badges = [];
+    
+    // Try Firebase first
+    if (typeof firebaseInitialized !== 'undefined' && firebaseInitialized && db) {
+        try {
+            const snapshot = await db.collection('badges')
+                .orderBy('date', 'desc')
+                .limit(50)
+                .get();
+            
+            badges = snapshot.docs.map(doc => ({
+                ...doc.data(),
+                id: doc.id
+            }));
+        } catch (error) {
+            console.log('Fallback to local storage:', error);
+        }
+    }
+    
+    // Merge with local badges
+    const localBadges = getGalleryData();
+    const localOnlyBadges = localBadges.filter(lb => lb.isLocal);
+    badges = [...localOnlyBadges, ...badges];
+    
+    galleryLoading.classList.add('hidden');
+    
+    if (badges.length === 0) {
         galleryEmpty.classList.add('visible');
         return;
     }
     
-    galleryEmpty.classList.remove('visible');
-    
-    gallery.forEach(badge => {
+    badges.forEach(badge => {
         const item = createGalleryItem(badge);
         galleryGrid.appendChild(item);
     });
@@ -615,8 +749,11 @@ function createGalleryItem(badge) {
         year: 'numeric'
     });
     
+    const thumbnailSrc = badge.thumbnailUrl || badge.thumbnail;
+    const fullImageSrc = badge.imageUrl || badge.fullImage;
+    
     item.innerHTML = `
-        <img src="${badge.thumbnail}" alt="Badge de ${badge.prenom} ${badge.nom}" loading="lazy">
+        <img src="${thumbnailSrc}" alt="Badge de ${badge.prenom} ${badge.nom}" loading="lazy">
         <div class="gallery-item-overlay">
             <p class="gallery-item-name">${badge.prenom} ${badge.nom.toUpperCase()}</p>
             <p class="gallery-item-date">${formattedDate}</p>
@@ -629,32 +766,23 @@ function createGalleryItem(badge) {
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
             </button>
-            <button class="gallery-item-btn delete" title="Supprimer">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
         </div>
     `;
+    
+    // Store full image URL for modal
+    item.dataset.fullImage = fullImageSrc;
     
     // Click to view full image
     item.addEventListener('click', (e) => {
         if (!e.target.closest('.gallery-item-btn')) {
-            openGalleryModal(badge);
+            openGalleryModal({...badge, fullImage: fullImageSrc});
         }
     });
     
     // Download button
     item.querySelector('.gallery-item-btn.download').addEventListener('click', (e) => {
         e.stopPropagation();
-        downloadGalleryBadge(badge);
-    });
-    
-    // Delete button
-    item.querySelector('.gallery-item-btn.delete').addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteBadgeFromGallery(badge.id);
+        downloadGalleryBadge({...badge, fullImage: fullImageSrc});
     });
     
     return item;
@@ -663,31 +791,15 @@ function createGalleryItem(badge) {
 function downloadGalleryBadge(badge) {
     const filename = `badge_UP_${badge.prenom}_${badge.nom}.png`.replace(/\s+/g, '_');
     const link = document.createElement('a');
-    link.href = badge.fullImage;
+    link.href = badge.fullImage || badge.imageUrl;
     link.download = filename;
+    link.target = '_blank';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-function deleteBadgeFromGallery(id) {
-    if (!confirm('Supprimer ce badge de la galerie ?')) return;
-    
-    const gallery = getGalleryData();
-    const updatedGallery = gallery.filter(badge => badge.id !== id);
-    saveGalleryData(updatedGallery);
-    loadGallery();
-}
-
-function clearGallery() {
-    if (!confirm('Vider toute la galerie ? Cette action est irréversible.')) return;
-    
-    localStorage.removeItem(GALLERY_STORAGE_KEY);
-    loadGallery();
-}
-
 function openGalleryModal(badge) {
-    // Create modal if it doesn't exist
     let modal = document.getElementById('galleryModal');
     if (!modal) {
         modal = document.createElement('div');
@@ -700,31 +812,29 @@ function openGalleryModal(badge) {
     const formattedDate = date.toLocaleDateString('fr-FR', {
         day: '2-digit',
         month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        year: 'numeric'
     });
+    
+    const fullImageSrc = badge.fullImage || badge.imageUrl;
     
     modal.innerHTML = `
         <div class="gallery-modal-content">
             <button class="gallery-modal-close">&times;</button>
-            <img src="${badge.fullImage}" alt="Badge de ${badge.prenom} ${badge.nom}">
+            <img src="${fullImageSrc}" alt="Badge de ${badge.prenom} ${badge.nom}">
             <div class="gallery-modal-info">
                 <h3>${badge.prenom} ${badge.nom.toUpperCase()}</h3>
-                <p>Créé le ${formattedDate}</p>
+                <p>Publié le ${formattedDate}</p>
             </div>
         </div>
     `;
     
     modal.classList.add('active');
     
-    // Close modal events
     modal.querySelector('.gallery-modal-close').addEventListener('click', closeGalleryModal);
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeGalleryModal();
     });
     
-    // Close with Escape key
     document.addEventListener('keydown', handleModalEscape);
 }
 
@@ -751,27 +861,36 @@ async function handlePublishToGallery() {
     
     const prenom = prenomInput.value.trim();
     const nom = nomInput.value.trim();
+    const btn = document.getElementById('publishToGallery');
+    const originalHTML = btn.innerHTML;
+    
+    // Show loading state
+    btn.innerHTML = '<div class="spinner-small"></div><span>Publication...</span>';
+    btn.disabled = true;
     
     // Convert blob to data URL for storage
     const reader = new FileReader();
-    reader.onloadend = () => {
-        saveBadgeToGallery(reader.result, prenom, nom);
-        
-        // Show confirmation
-        const btn = document.getElementById('publishToGallery');
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Publié !</span>';
-        btn.style.background = 'var(--primary-color)';
-        btn.disabled = true;
-        
-        setTimeout(() => {
+    reader.onloadend = async () => {
+        try {
+            await saveBadgeToGallery(reader.result, prenom, nom);
+            
+            // Show success
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Publié !</span>';
+            btn.style.background = 'var(--primary-color)';
+            btn.style.color = 'white';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.background = '';
+                btn.style.color = '';
+                btn.disabled = false;
+            }, 2000);
+        } catch (error) {
+            console.error('Error publishing:', error);
             btn.innerHTML = originalHTML;
-            btn.style.background = '';
             btn.disabled = false;
-        }, 2000);
-        
-        // Scroll to gallery
-        gallerySection.scrollIntoView({ behavior: 'smooth' });
+            alert('Erreur lors de la publication. Réessayez.');
+        }
     };
     reader.readAsDataURL(generatedImageBlob);
 }
