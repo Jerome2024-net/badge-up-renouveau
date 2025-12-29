@@ -50,6 +50,61 @@ const API_URL = window.location.hostname === 'localhost' || window.location.host
     ? 'http://localhost:3000/api/badges'
     : 'https://badge-up-renouveau.vercel.app/api/badges';
 
+// Cloudinary config for image storage (free tier: 25GB)
+const CLOUDINARY_CLOUD_NAME = 'dn8ed1doa';
+const CLOUDINARY_UPLOAD_PRESET = 'badge_up_renouveau';
+
+// Compress image to reduce storage size
+function compressImage(dataUrl, maxWidth = 540, quality = 0.7) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ratio = maxWidth / img.width;
+            canvas.width = maxWidth;
+            canvas.height = img.height * ratio;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = dataUrl;
+    });
+}
+
+// Upload image to Cloudinary
+async function uploadToCloudinary(imageDataUrl) {
+    try {
+        const formData = new FormData();
+        
+        // Convert base64 to blob
+        const response = await fetch(imageDataUrl);
+        const blob = await response.blob();
+        
+        formData.append('file', blob);
+        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+        formData.append('folder', 'badges_up_renouveau');
+        
+        const uploadResponse = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+            {
+                method: 'POST',
+                body: formData
+            }
+        );
+        
+        if (uploadResponse.ok) {
+            const data = await uploadResponse.json();
+            return data.secure_url; // URL Cloudinary de l'image
+        }
+        throw new Error('Upload failed');
+    } catch (error) {
+        console.error('Cloudinary upload error:', error);
+        return null;
+    }
+}
+
 // Image adjustment state
 let currentScale = 1;
 let currentX = 0;
@@ -752,9 +807,21 @@ function saveGalleryData(data) {
     }
 }
 
-// Save badge - API or Local
+// Save badge - Upload to Cloudinary then API/Local
 async function saveBadgeToGallery(imageDataUrl, prenom, nom) {
     try {
+        // 1. Compress image first (540px, 70% quality = ~50KB instead of ~1MB)
+        const compressedImage = await compressImage(imageDataUrl, 540, 0.7);
+        
+        // 2. Try to upload to Cloudinary for permanent storage
+        let finalImageUrl = compressedImage;
+        const cloudinaryUrl = await uploadToCloudinary(compressedImage);
+        if (cloudinaryUrl) {
+            finalImageUrl = cloudinaryUrl;
+            console.log('Image uploaded to Cloudinary:', cloudinaryUrl);
+        }
+        
+        // 3. Save to API (with Cloudinary URL or compressed base64)
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
@@ -763,18 +830,20 @@ async function saveBadgeToGallery(imageDataUrl, prenom, nom) {
             body: JSON.stringify({
                 prenom,
                 nom,
-                imageUrl: imageDataUrl
+                imageUrl: finalImageUrl
             })
         });
         
         if (response.ok) {
-            loadGalleryPreview(); // Refresh preview
+            loadGalleryPreview();
             return;
         }
         throw new Error('API error');
     } catch (error) {
-        console.log('API not available, saving to local storage');
-        saveToLocalGallery(imageDataUrl, prenom, nom, {
+        console.log('API not available, saving to local storage (compressed)');
+        // Fallback: save compressed image locally
+        const compressedImage = await compressImage(imageDataUrl, 400, 0.6);
+        saveToLocalGallery(compressedImage, prenom, nom, {
             id: Date.now().toString(),
             prenom,
             nom,
@@ -795,7 +864,8 @@ function saveToLocalGallery(imageDataUrl, prenom, nom, badgeData) {
     
     gallery.unshift(localBadgeData);
     
-    if (gallery.length > 20) {
+    // Limit to 10 badges locally to save storage space
+    if (gallery.length > 10) {
         gallery.pop();
     }
     
