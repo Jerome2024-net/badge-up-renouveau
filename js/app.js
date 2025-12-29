@@ -42,6 +42,11 @@ let generatedImageUrl = null;
 // Gallery storage key (for local fallback)
 const GALLERY_STORAGE_KEY = 'up_renouveau_badges_gallery';
 
+// API URL - Change this after deploying to Vercel
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000/api/badges'
+    : 'https://badge-up-renouveau.vercel.app/api/badges';
+
 // Image adjustment state
 let currentScale = 1;
 let currentX = 0;
@@ -551,15 +556,14 @@ function showFormView() {
 async function updateGalleryCount() {
     let count = 0;
     
-    if (typeof firebaseInitialized !== 'undefined' && firebaseInitialized && db) {
-        try {
-            const snapshot = await db.collection('badges').get();
-            count = snapshot.size;
-        } catch (error) {
-            console.log('Fallback to local storage');
-            count = getGalleryData().length;
+    try {
+        const response = await fetch(API_URL);
+        if (response.ok) {
+            const badges = await response.json();
+            count = badges.length;
         }
-    } else {
+    } catch (error) {
+        console.log('API not available, using local storage');
         count = getGalleryData().length;
     }
     
@@ -588,77 +592,35 @@ function saveGalleryData(data) {
     }
 }
 
-// Save badge - Firebase or Local
+// Save badge - API or Local
 async function saveBadgeToGallery(imageDataUrl, prenom, nom) {
-    const badgeData = {
-        id: Date.now().toString(),
-        prenom: prenom,
-        nom: nom,
-        date: new Date().toISOString()
-    };
-    
-    // Try Firebase first
-    if (typeof firebaseInitialized !== 'undefined' && firebaseInitialized && db && storage) {
-        try {
-            showLoading();
-            
-            // Upload image to Firebase Storage
-            const imageRef = storage.ref().child(`badges/${badgeData.id}.png`);
-            
-            // Convert data URL to blob
-            const response = await fetch(imageDataUrl);
-            const blob = await response.blob();
-            
-            await imageRef.put(blob);
-            const imageUrl = await imageRef.getDownloadURL();
-            
-            // Create thumbnail
-            const thumbnailUrl = await createAndUploadThumbnail(imageDataUrl, badgeData.id);
-            
-            // Save to Firestore
-            await db.collection('badges').doc(badgeData.id).set({
-                ...badgeData,
-                imageUrl: imageUrl,
-                thumbnailUrl: thumbnailUrl
-            });
-            
-            hideLoading();
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prenom,
+                nom,
+                imageUrl: imageDataUrl
+            })
+        });
+        
+        if (response.ok) {
             updateGalleryCount();
             return;
-        } catch (error) {
-            console.error('Firebase error, falling back to local:', error);
-            hideLoading();
         }
+        throw new Error('API error');
+    } catch (error) {
+        console.log('API not available, saving to local storage');
+        saveToLocalGallery(imageDataUrl, prenom, nom, {
+            id: Date.now().toString(),
+            prenom,
+            nom,
+            date: new Date().toISOString()
+        });
     }
-    
-    // Fallback to local storage
-    saveToLocalGallery(imageDataUrl, prenom, nom, badgeData);
-}
-
-async function createAndUploadThumbnail(imageDataUrl, id) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = async () => {
-            const canvas = document.createElement('canvas');
-            const thumbnailSize = 300;
-            canvas.width = thumbnailSize;
-            canvas.height = thumbnailSize;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, thumbnailSize, thumbnailSize);
-            
-            canvas.toBlob(async (blob) => {
-                try {
-                    const thumbRef = storage.ref().child(`thumbnails/${id}.jpg`);
-                    await thumbRef.put(blob);
-                    const url = await thumbRef.getDownloadURL();
-                    resolve(url);
-                } catch (error) {
-                    resolve(imageDataUrl); // Fallback
-                }
-            }, 'image/jpeg', 0.7);
-        };
-        img.src = imageDataUrl;
-    });
 }
 
 function saveToLocalGallery(imageDataUrl, prenom, nom, badgeData) {
@@ -694,7 +656,7 @@ function saveToLocalGallery(imageDataUrl, prenom, nom, badgeData) {
     img.src = imageDataUrl;
 }
 
-// Load gallery - Firebase or Local
+// Load gallery - API or Local
 async function loadGallery() {
     galleryGrid.innerHTML = '';
     galleryLoading.classList.remove('hidden');
@@ -702,21 +664,14 @@ async function loadGallery() {
     
     let badges = [];
     
-    // Try Firebase first
-    if (typeof firebaseInitialized !== 'undefined' && firebaseInitialized && db) {
-        try {
-            const snapshot = await db.collection('badges')
-                .orderBy('date', 'desc')
-                .limit(50)
-                .get();
-            
-            badges = snapshot.docs.map(doc => ({
-                ...doc.data(),
-                id: doc.id
-            }));
-        } catch (error) {
-            console.log('Fallback to local storage:', error);
+    // Try API first
+    try {
+        const response = await fetch(API_URL);
+        if (response.ok) {
+            badges = await response.json();
         }
+    } catch (error) {
+        console.log('API not available, using local storage');
     }
     
     // Merge with local badges
