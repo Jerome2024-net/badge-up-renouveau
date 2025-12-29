@@ -98,7 +98,8 @@ function setupEventListeners() {
     // Gallery events
     seeAllBadgesBtn.addEventListener('click', openFullGallery);
     closeGalleryBtn.addEventListener('click', closeFullGallery);
-    document.getElementById('publishToGallery').addEventListener('click', handlePublishToGallery);
+    // Publication automatique - plus besoin du bouton
+    // document.getElementById('publishToGallery').addEventListener('click', handlePublishToGallery);
 }
 
 // Photo handling
@@ -246,10 +247,19 @@ async function generateBadgeImage() {
             height: badgeWidth // Square format
         });
         
-        // Convert to blob
-        canvas.toBlob((blob) => {
+        // Convert to blob and auto-publish to gallery
+        canvas.toBlob(async (blob) => {
             generatedImageBlob = blob;
             generatedImageUrl = URL.createObjectURL(blob);
+            
+            // Auto-publish to gallery
+            const prenom = prenomInput.value.trim();
+            const nom = nomInput.value.trim();
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                await saveBadgeToGallery(reader.result, prenom, nom);
+            };
+            reader.readAsDataURL(blob);
         }, 'image/png', 1.0);
         
     } catch (error) {
