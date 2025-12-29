@@ -26,14 +26,17 @@ const zoomOutBtn = document.getElementById('zoomOutBtn');
 const badgePhotoZone = document.getElementById('badgePhotoZone');
 
 // Gallery Elements
-const gallerySection = document.getElementById('gallerySection');
+const galleryPreview = document.getElementById('galleryPreview');
+const galleryPreviewScroll = document.getElementById('galleryPreviewScroll');
+const galleryPreviewEmpty = document.getElementById('galleryPreviewEmpty');
+const badgeCounter = document.getElementById('badgeCounter');
+const seeAllBadgesBtn = document.getElementById('seeAllBadgesBtn');
+const galleryFull = document.getElementById('galleryFull');
+const closeGalleryBtn = document.getElementById('closeGalleryBtn');
 const galleryGrid = document.getElementById('galleryGrid');
 const galleryEmpty = document.getElementById('galleryEmpty');
 const galleryLoading = document.getElementById('galleryLoading');
-const galleryCount = document.getElementById('galleryCount');
 const galleryBadgeCount = document.getElementById('galleryBadgeCount');
-const openGalleryBtn = document.getElementById('openGalleryBtn');
-const backToFormBtn = document.getElementById('backToFormBtn');
 
 // Store the generated image
 let generatedImageBlob = null;
@@ -60,7 +63,7 @@ document.addEventListener('DOMContentLoaded', init);
 function init() {
     setupEventListeners();
     setupImageAdjustment();
-    updateGalleryCount();
+    loadGalleryPreview();
 }
 
 function setupEventListeners() {
@@ -93,8 +96,8 @@ function setupEventListeners() {
     photoUpload.addEventListener('drop', handleDrop);
     
     // Gallery events
-    openGalleryBtn.addEventListener('click', showGalleryView);
-    backToFormBtn.addEventListener('click', showFormView);
+    seeAllBadgesBtn.addEventListener('click', openFullGallery);
+    closeGalleryBtn.addEventListener('click', closeFullGallery);
     document.getElementById('publishToGallery').addEventListener('click', handlePublishToGallery);
 }
 
@@ -536,39 +539,104 @@ function fitImageToZone() {
 // GALLERY FUNCTIONS
 // =====================
 
-// View switching
-function showGalleryView() {
-    formSection.style.display = 'none';
-    badgeSection.style.display = 'none';
-    gallerySection.classList.add('active');
-    loadGallery();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function showFormView() {
-    gallerySection.classList.remove('active');
-    formSection.style.display = '';
-    badgeSection.style.display = 'none';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// Update gallery count in header
-async function updateGalleryCount() {
-    let count = 0;
+// Load preview badges on home page
+async function loadGalleryPreview() {
+    let badges = [];
     
     try {
         const response = await fetch(API_URL);
         if (response.ok) {
-            const badges = await response.json();
-            count = badges.length;
+            badges = await response.json();
+        }
+    } catch (error) {
+        console.log('API not available');
+        badges = getGalleryData();
+    }
+    
+    // Update counter
+    const count = badges.length;
+    badgeCounter.textContent = `${count} supporter${count > 1 ? 's' : ''}`;
+    
+    // Clear and populate preview
+    galleryPreviewScroll.innerHTML = '';
+    
+    if (badges.length === 0) {
+        galleryPreviewScroll.appendChild(galleryPreviewEmpty);
+        galleryPreviewEmpty.classList.remove('hidden');
+        return;
+    }
+    
+    galleryPreviewEmpty.classList.add('hidden');
+    
+    // Show first 10 badges in preview
+    badges.slice(0, 10).forEach(badge => {
+        const item = createPreviewItem(badge);
+        galleryPreviewScroll.appendChild(item);
+    });
+}
+
+function createPreviewItem(badge) {
+    const item = document.createElement('div');
+    item.className = 'gallery-preview-item';
+    
+    const thumbnailSrc = badge.thumbnailUrl || badge.thumbnail || badge.imageUrl;
+    const fullImageSrc = badge.imageUrl || badge.fullImage;
+    
+    item.innerHTML = `
+        <img src="${thumbnailSrc}" alt="${badge.prenom}" loading="lazy">
+        <span class="preview-name">${badge.prenom}</span>
+    `;
+    
+    item.addEventListener('click', () => {
+        openGalleryModal({...badge, fullImage: fullImageSrc});
+    });
+    
+    return item;
+}
+
+// Open full gallery
+function openFullGallery() {
+    galleryFull.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    loadFullGallery();
+}
+
+// Close full gallery
+function closeFullGallery() {
+    galleryFull.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Load full gallery
+async function loadFullGallery() {
+    galleryGrid.innerHTML = '';
+    galleryLoading.classList.remove('hidden');
+    galleryEmpty.classList.remove('visible');
+    
+    let badges = [];
+    
+    try {
+        const response = await fetch(API_URL);
+        if (response.ok) {
+            badges = await response.json();
         }
     } catch (error) {
         console.log('API not available, using local storage');
-        count = getGalleryData().length;
+        badges = getGalleryData();
     }
     
-    galleryCount.textContent = count;
-    galleryBadgeCount.textContent = `${count} badge${count > 1 ? 's' : ''}`;
+    galleryLoading.classList.add('hidden');
+    galleryBadgeCount.textContent = `${badges.length} badge${badges.length > 1 ? 's' : ''}`;
+    
+    if (badges.length === 0) {
+        galleryEmpty.classList.add('visible');
+        return;
+    }
+    
+    badges.forEach(badge => {
+        const item = createGalleryItem(badge);
+        galleryGrid.appendChild(item);
+    });
 }
 
 function getGalleryData() {
@@ -608,7 +676,7 @@ async function saveBadgeToGallery(imageDataUrl, prenom, nom) {
         });
         
         if (response.ok) {
-            updateGalleryCount();
+            loadGalleryPreview(); // Refresh preview
             return;
         }
         throw new Error('API error');
@@ -620,76 +688,26 @@ async function saveBadgeToGallery(imageDataUrl, prenom, nom) {
             nom,
             date: new Date().toISOString()
         });
+        loadGalleryPreview();
     }
 }
 
 function saveToLocalGallery(imageDataUrl, prenom, nom, badgeData) {
     const gallery = getGalleryData();
     
-    const img = new Image();
-    img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const thumbnailSize = 300;
-        canvas.width = thumbnailSize;
-        canvas.height = thumbnailSize;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, thumbnailSize, thumbnailSize);
-        
-        const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        
-        const localBadgeData = {
-            ...badgeData,
-            thumbnail: thumbnailDataUrl,
-            fullImage: imageDataUrl,
-            isLocal: true
-        };
-        
-        gallery.unshift(localBadgeData);
-        
-        if (gallery.length > 20) {
-            gallery.pop();
-        }
-        
-        saveGalleryData(gallery);
-        updateGalleryCount();
+    const localBadgeData = {
+        ...badgeData,
+        imageUrl: imageDataUrl,
+        isLocal: true
     };
-    img.src = imageDataUrl;
-}
-
-// Load gallery - API or Local
-async function loadGallery() {
-    galleryGrid.innerHTML = '';
-    galleryLoading.classList.remove('hidden');
-    galleryEmpty.classList.remove('visible');
     
-    let badges = [];
+    gallery.unshift(localBadgeData);
     
-    // Try API first
-    try {
-        const response = await fetch(API_URL);
-        if (response.ok) {
-            badges = await response.json();
-        }
-    } catch (error) {
-        console.log('API not available, using local storage');
+    if (gallery.length > 20) {
+        gallery.pop();
     }
     
-    // Merge with local badges
-    const localBadges = getGalleryData();
-    const localOnlyBadges = localBadges.filter(lb => lb.isLocal);
-    badges = [...localOnlyBadges, ...badges];
-    
-    galleryLoading.classList.add('hidden');
-    
-    if (badges.length === 0) {
-        galleryEmpty.classList.add('visible');
-        return;
-    }
-    
-    badges.forEach(badge => {
-        const item = createGalleryItem(badge);
-        galleryGrid.appendChild(item);
-    });
+    saveGalleryData(gallery);
 }
 
 function createGalleryItem(badge) {
@@ -697,14 +715,14 @@ function createGalleryItem(badge) {
     item.className = 'gallery-item';
     item.dataset.id = badge.id;
     
-    const date = new Date(badge.date);
+    const date = new Date(badge.createdAt || badge.date);
     const formattedDate = date.toLocaleDateString('fr-FR', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
     });
     
-    const thumbnailSrc = badge.thumbnailUrl || badge.thumbnail;
+    const thumbnailSrc = badge.thumbnailUrl || badge.thumbnail || badge.imageUrl;
     const fullImageSrc = badge.imageUrl || badge.fullImage;
     
     item.innerHTML = `
@@ -724,17 +742,14 @@ function createGalleryItem(badge) {
         </div>
     `;
     
-    // Store full image URL for modal
     item.dataset.fullImage = fullImageSrc;
     
-    // Click to view full image
     item.addEventListener('click', (e) => {
         if (!e.target.closest('.gallery-item-btn')) {
             openGalleryModal({...badge, fullImage: fullImageSrc});
         }
     });
     
-    // Download button
     item.querySelector('.gallery-item-btn.download').addEventListener('click', (e) => {
         e.stopPropagation();
         downloadGalleryBadge({...badge, fullImage: fullImageSrc});

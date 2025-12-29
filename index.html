@@ -22,15 +22,6 @@
             </div>
             <h1>UP – Le Renouveau</h1>
             <p class="subtitle">Créez votre badge de campagne</p>
-            <button class="btn btn-gallery-nav" id="openGalleryBtn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <polyline points="21 15 16 10 5 21"></polyline>
-                </svg>
-                <span>Voir la Galerie</span>
-                <span class="gallery-count" id="galleryCount">0</span>
-            </button>
         </header>
 
         <!-- Form Section -->
@@ -131,30 +122,48 @@
             </button>
         </section>
 
-        <!-- Gallery Section -->
-        <section class="gallery-section" id="gallerySection">
-            <div class="gallery-header">
-                <div class="gallery-title-wrap">
+        <!-- Gallery Preview Section - Toujours visible -->
+        <section class="gallery-preview" id="galleryPreview">
+            <div class="gallery-preview-header">
+                <h2>🌟 Ils soutiennent UP – Le Renouveau</h2>
+                <span class="badge-counter" id="badgeCounter">0 supporters</span>
+            </div>
+            <div class="gallery-preview-scroll" id="galleryPreviewScroll">
+                <div class="gallery-preview-empty" id="galleryPreviewEmpty">
+                    <p>🎉 Soyez le premier à créer et publier votre badge !</p>
+                </div>
+                <!-- Badges en scroll horizontal -->
+            </div>
+            <button class="btn btn-see-all" id="seeAllBadgesBtn">
+                Voir tous les badges
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+            </button>
+        </section>
+
+        <!-- Full Gallery Section (hidden by default) -->
+        <section class="gallery-full" id="galleryFull">
+            <div class="gallery-full-header">
+                <button class="btn-close-gallery" id="closeGalleryBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <div class="gallery-full-title">
                     <h2>📸 Galerie Communautaire</h2>
                     <span class="gallery-badge-count" id="galleryBadgeCount">0 badges</span>
                 </div>
-                <button class="btn-back-form" id="backToFormBtn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="19" y1="12" x2="5" y2="12"></line>
-                        <polyline points="12 19 5 12 12 5"></polyline>
-                    </svg>
-                    <span>Créer mon badge</span>
-                </button>
             </div>
-            <p class="gallery-subtitle">Badges publiés par les supporters UP – Le Renouveau</p>
+            <p class="gallery-full-subtitle">Tous les supporters UP – Le Renouveau</p>
             <div class="gallery-loading" id="galleryLoading">
                 <div class="spinner-small"></div>
-                <span>Chargement des badges...</span>
+                <span>Chargement...</span>
             </div>
-            <div class="gallery-grid" id="galleryGrid">
-                <!-- Les badges seront ajoutés dynamiquement ici -->
-            </div>
-            <p class="gallery-empty" id="galleryEmpty">Soyez le premier à publier votre badge !</p>
+            <div class="gallery-grid" id="galleryGrid"></div>
+            <p class="gallery-empty" id="galleryEmpty">Aucun badge pour le moment</p>
         </section>
 
         <!-- Footer -->
