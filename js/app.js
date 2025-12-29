@@ -25,9 +25,18 @@ const zoomInBtn = document.getElementById('zoomInBtn');
 const zoomOutBtn = document.getElementById('zoomOutBtn');
 const badgePhotoZone = document.getElementById('badgePhotoZone');
 
+// Gallery Elements
+const gallerySection = document.getElementById('gallerySection');
+const galleryGrid = document.getElementById('galleryGrid');
+const galleryEmpty = document.getElementById('galleryEmpty');
+const clearGalleryBtn = document.getElementById('clearGalleryBtn');
+
 // Store the generated image
 let generatedImageBlob = null;
 let generatedImageUrl = null;
+
+// Gallery storage key
+const GALLERY_STORAGE_KEY = 'up_renouveau_badges_gallery';
 
 // Image adjustment state
 let currentScale = 1;
@@ -42,6 +51,7 @@ document.addEventListener('DOMContentLoaded', init);
 function init() {
     setupEventListeners();
     setupImageAdjustment();
+    loadGallery();
 }
 
 function setupEventListeners() {
@@ -72,6 +82,9 @@ function setupEventListeners() {
     photoUpload.addEventListener('dragover', handleDragOver);
     photoUpload.addEventListener('dragleave', handleDragLeave);
     photoUpload.addEventListener('drop', handleDrop);
+    
+    // Gallery events
+    clearGalleryBtn.addEventListener('click', clearGallery);
 }
 
 // Photo handling
@@ -223,6 +236,9 @@ async function generateBadgeImage() {
         canvas.toBlob((blob) => {
             generatedImageBlob = blob;
             generatedImageUrl = URL.createObjectURL(blob);
+            
+            // Save to gallery
+            saveBadgeToGallery(canvas.toDataURL('image/png'), prenomInput.value.trim(), nomInput.value.trim());
         }, 'image/png', 1.0);
         
     } catch (error) {
@@ -505,5 +521,225 @@ function fitImageToZone() {
         // Since flex centers it, the top is cut off.
         // To show the top, we would need to translate Y positive.
         // For now, we leave it centered as the user can drag it.
+    }
+}
+
+// =====================
+// GALLERY FUNCTIONS
+// =====================
+
+function getGalleryData() {
+    try {
+        const data = localStorage.getItem(GALLERY_STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch (error) {
+        console.error('Error reading gallery data:', error);
+        return [];
+    }
+}
+
+function saveGalleryData(data) {
+    try {
+        localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(data));
+    } catch (error) {
+        console.error('Error saving gallery data:', error);
+        // Handle quota exceeded
+        if (error.name === 'QuotaExceededError') {
+            alert('Espace de stockage insuffisant. Supprimez quelques badges de la galerie.');
+        }
+    }
+}
+
+function saveBadgeToGallery(imageDataUrl, prenom, nom) {
+    const gallery = getGalleryData();
+    
+    // Create thumbnail (smaller version to save space)
+    const img = new Image();
+    img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const thumbnailSize = 300; // Smaller size for gallery
+        canvas.width = thumbnailSize;
+        canvas.height = thumbnailSize;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, thumbnailSize, thumbnailSize);
+        
+        const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        
+        const badgeData = {
+            id: Date.now(),
+            prenom: prenom,
+            nom: nom,
+            thumbnail: thumbnailDataUrl,
+            fullImage: imageDataUrl,
+            date: new Date().toISOString()
+        };
+        
+        // Add to beginning of array (newest first)
+        gallery.unshift(badgeData);
+        
+        // Limit gallery size to prevent storage overflow (keep last 20)
+        if (gallery.length > 20) {
+            gallery.pop();
+        }
+        
+        saveGalleryData(gallery);
+        loadGallery();
+    };
+    img.src = imageDataUrl;
+}
+
+function loadGallery() {
+    const gallery = getGalleryData();
+    galleryGrid.innerHTML = '';
+    
+    if (gallery.length === 0) {
+        galleryEmpty.classList.add('visible');
+        return;
+    }
+    
+    galleryEmpty.classList.remove('visible');
+    
+    gallery.forEach(badge => {
+        const item = createGalleryItem(badge);
+        galleryGrid.appendChild(item);
+    });
+}
+
+function createGalleryItem(badge) {
+    const item = document.createElement('div');
+    item.className = 'gallery-item';
+    item.dataset.id = badge.id;
+    
+    const date = new Date(badge.date);
+    const formattedDate = date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+    
+    item.innerHTML = `
+        <img src="${badge.thumbnail}" alt="Badge de ${badge.prenom} ${badge.nom}" loading="lazy">
+        <div class="gallery-item-overlay">
+            <p class="gallery-item-name">${badge.prenom} ${badge.nom.toUpperCase()}</p>
+            <p class="gallery-item-date">${formattedDate}</p>
+        </div>
+        <div class="gallery-item-actions">
+            <button class="gallery-item-btn download" title="Télécharger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </button>
+            <button class="gallery-item-btn delete" title="Supprimer">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    `;
+    
+    // Click to view full image
+    item.addEventListener('click', (e) => {
+        if (!e.target.closest('.gallery-item-btn')) {
+            openGalleryModal(badge);
+        }
+    });
+    
+    // Download button
+    item.querySelector('.gallery-item-btn.download').addEventListener('click', (e) => {
+        e.stopPropagation();
+        downloadGalleryBadge(badge);
+    });
+    
+    // Delete button
+    item.querySelector('.gallery-item-btn.delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteBadgeFromGallery(badge.id);
+    });
+    
+    return item;
+}
+
+function downloadGalleryBadge(badge) {
+    const filename = `badge_UP_${badge.prenom}_${badge.nom}.png`.replace(/\s+/g, '_');
+    const link = document.createElement('a');
+    link.href = badge.fullImage;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function deleteBadgeFromGallery(id) {
+    if (!confirm('Supprimer ce badge de la galerie ?')) return;
+    
+    const gallery = getGalleryData();
+    const updatedGallery = gallery.filter(badge => badge.id !== id);
+    saveGalleryData(updatedGallery);
+    loadGallery();
+}
+
+function clearGallery() {
+    if (!confirm('Vider toute la galerie ? Cette action est irréversible.')) return;
+    
+    localStorage.removeItem(GALLERY_STORAGE_KEY);
+    loadGallery();
+}
+
+function openGalleryModal(badge) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('galleryModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'galleryModal';
+        modal.className = 'gallery-modal';
+        document.body.appendChild(modal);
+    }
+    
+    const date = new Date(badge.date);
+    const formattedDate = date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    modal.innerHTML = `
+        <div class="gallery-modal-content">
+            <button class="gallery-modal-close">&times;</button>
+            <img src="${badge.fullImage}" alt="Badge de ${badge.prenom} ${badge.nom}">
+            <div class="gallery-modal-info">
+                <h3>${badge.prenom} ${badge.nom.toUpperCase()}</h3>
+                <p>Créé le ${formattedDate}</p>
+            </div>
+        </div>
+    `;
+    
+    modal.classList.add('active');
+    
+    // Close modal events
+    modal.querySelector('.gallery-modal-close').addEventListener('click', closeGalleryModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeGalleryModal();
+    });
+    
+    // Close with Escape key
+    document.addEventListener('keydown', handleModalEscape);
+}
+
+function closeGalleryModal() {
+    const modal = document.getElementById('galleryModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    document.removeEventListener('keydown', handleModalEscape);
+}
+
+function handleModalEscape(e) {
+    if (e.key === 'Escape') {
+        closeGalleryModal();
     }
 }
